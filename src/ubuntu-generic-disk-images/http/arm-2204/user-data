@@ -37,6 +37,14 @@ autoinstall:
     allow-pw: true
     authorized-keys: []
     install-server: true
+  late-commands:
+  # https://github.com/hashicorp/packer-plugin-qemu/issues/66#issuecomment-1466049817
+    - |
+      if [ -d /sys/firmware/efi ]; then
+        apt-get install -y efibootmgr
+        efibootmgr -o $(efibootmgr | perl -n -e '/Boot(.+)\* ubuntu/ && print $1')
+      fi
+
   storage:
     config:
     - ptable: gpt
@@ -62,7 +70,7 @@ autoinstall:
       type: format
       id: format-0
     - device: disk-vda
-      size: 4257218560
+      size: 20909654016
       wipe: superblock
       flag: ''
       number: 2

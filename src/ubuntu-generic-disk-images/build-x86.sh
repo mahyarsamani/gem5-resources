@@ -5,12 +5,10 @@
 
 PACKER_VERSION="1.10.0"
 
-# This part installs the packer binary on the arm64 machine as we are assuming
-# that we are building the disk image on an arm64 machine.
 if [ ! -f ./packer ]; then
-    wget https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_arm64.zip;
-    unzip packer_${PACKER_VERSION}_linux_arm64.zip;
-    rm packer_${PACKER_VERSION}_linux_arm64.zip;
+    wget https://releases.hashicorp.com/packer/${PACKER_VERSION}/packer_${PACKER_VERSION}_linux_amd64.zip;
+    unzip packer_${PACKER_VERSION}_linux_amd64.zip;
+    rm packer_${PACKER_VERSION}_linux_amd64.zip;
 fi
 
 # Check if the Ubuntu version variable is provided
@@ -29,14 +27,11 @@ if [[ "$ubuntu_version" != "22.04" && "$ubuntu_version" != "24.04" ]]; then
     exit 1
 fi
 
-# make the flash0.sh file
-cd ./files
-dd if=/dev/zero of=flash0.img bs=1M count=64
-dd if=/usr/share/qemu-efi-aarch64/QEMU_EFI.fd of=flash0.img conv=notrunc
-cd ..
+# Store the image name from the second command line argument or default to "x86-ubuntu"
+image_name="${2:-x86-ubuntu}"
 
 # Install the needed plugins
-./packer init ./packer-scripts/arm-ubuntu.pkr.hcl
+./packer init ./packer-scripts/x86-ubuntu.pkr.hcl
 
 # Build the image with the specified Ubuntu version
-./packer build -var "ubuntu_version=${ubuntu_version}" ./packer-scripts/arm-ubuntu.pkr.hcl
+./packer build -var "ubuntu_version=${ubuntu_version}" -var "image_name=${image_name}" ./packer-scripts/x86-ubuntu.pkr.hcl

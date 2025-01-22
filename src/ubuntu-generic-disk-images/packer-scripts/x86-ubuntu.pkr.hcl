@@ -9,7 +9,6 @@ packer {
 
 variable "image_name" {
   type    = string
-  default = "x86-ubuntu"
 }
 
 variable "ssh_password" {
@@ -36,12 +35,12 @@ locals {
     "22.04" = {
       iso_url       = "https://old-releases.ubuntu.com/releases/jammy/ubuntu-22.04.2-live-server-amd64.iso"
       iso_checksum  = "sha256:5e38b55d57d94ff029719342357325ed3bda38fa80054f9330dc789cd2d43931"
-      output_dir    = "x86-disk-image-22-04"
+      output_dir    = "${var.image_name}-2204"
     }
     "24.04" = {
       iso_url       = "https://old-releases.ubuntu.com/releases/noble/ubuntu-24.04-live-server-amd64.iso"
       iso_checksum  = "sha256:8762f7e74e4d64d72fceb5f70682e6b069932deedb4949c6975d0f0fe0a91be3"
-      output_dir    = "x86-disk-image-24-04"
+      output_dir    = "${var.image_name}-2204"
     }
   }
 }
@@ -55,7 +54,7 @@ source "qemu" "initialize" {
                       "<f10><wait>"
                     ]
   cpus             = "4"
-  disk_size        = "5000"
+  disk_size        = "21600"
   format           = "raw"
   headless         = "true"
   http_directory   = "http/x86"
@@ -69,17 +68,12 @@ source "qemu" "initialize" {
   ssh_password     = "${var.ssh_password}"
   ssh_username     = "${var.ssh_username}"
   ssh_wait_timeout = "60m"
-  vm_name          = "${var.image_name}"
+  vm_name          = "disk-image"
   ssh_handshake_attempts = "1000"
 }
 
 build {
   sources = ["source.qemu.initialize"]
-
-  provisioner "file" {
-    destination = "/home/gem5/"
-    source      = "files/exit.sh"
-  }
 
   provisioner "file" {
     destination = "/home/gem5/"
@@ -93,15 +87,25 @@ build {
 
   provisioner "file" {
     destination = "/home/gem5/"
-    source      = "files/serial-getty@.service"
+    source      = "files/serial-getty@.service-override.conf"
   }
 
   provisioner "shell" {
     execute_command = "echo '${var.ssh_password}' | {{ .Vars }} sudo -E -S bash '{{ .Path }}'"
-    scripts         = ["scripts/post-installation.sh"]
-    environment_vars = ["ISA=x86"]
+    scripts         = ["scripts/install-commons.sh", "scripts/extract-kernel.sh", "scripts/install-gem5-bridge-driver.sh", "scripts/install-user-packages.sh"]
+    environment_vars = ["ISA=x86", "DEBIAN_FRONTEND=noninteractive"]
+    expect_disconnect = true
   }
-  
+
+  provisioner "shell" {
+    scripts = ["scripts/install-benchmarks.sh"]
+  }
+
+  provisioner "shell" {
+    execute_command = "echo '${var.ssh_password}' | {{ .Vars }} sudo -E -S bash '{{ .Path }}'"
+    scripts         = ["scripts/install-gem5-init.sh", "scripts/disable-network.sh"]
+    expect_disconnect = true
+  }
 
   provisioner "file" {
   source      = "/home/gem5/vmlinux-x86-ubuntu"
